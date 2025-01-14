@@ -1,11 +1,11 @@
+#include "data_types.h"
+#include "http.h"
 #include <p101_fsm/fsm.h>
 #include <p101_posix/p101_unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include "data_types.h"
-#include "http.h"
 
-static void             parse_arguments(const struct p101_env *env, int argc, char *argv[], struct context* ctx);
+static void             parse_arguments(const struct p101_env *env, int argc, char *argv[], struct context *ctx);
 _Noreturn static void   usage(const char *program_name, int exit_code, const char *message);
 static p101_fsm_state_t a(const struct p101_env *env, struct p101_error *err, void *arg);
 static p101_fsm_state_t setup_socket(const struct p101_env *env, struct p101_error *err, void *arg);
@@ -46,12 +46,12 @@ int main(int argc, char *argv[])
     else
     {
         static struct p101_fsm_transition transitions[] = {
-            {P101_FSM_INIT, SETUP_SOCKET,             setup_socket          },
-            {SETUP_SOCKET,             AWAIT_CLIENT,             await_client_connection          },
-            {SETUP_SOCKET,             ERROR_STATE,             error_state          },
-            {AWAIT_CLIENT,             CLIENT_THREAD,             start_client_thread          },
-            {AWAIT_CLIENT,             ERROR_STATE,         error_state},
-            {ERROR_STATE,         P101_FSM_EXIT, NULL       }
+            {P101_FSM_INIT, SETUP_SOCKET,  setup_socket           },
+            {SETUP_SOCKET,  AWAIT_CLIENT,  await_client_connection},
+            {SETUP_SOCKET,  ERROR_STATE,   error_state            },
+            {AWAIT_CLIENT,  CLIENT_THREAD, start_client_thread    },
+            {AWAIT_CLIENT,  ERROR_STATE,   error_state            },
+            {ERROR_STATE,   P101_FSM_EXIT, NULL                   }
         };
         p101_fsm_state_t from_state;
         p101_fsm_state_t to_state;
@@ -69,7 +69,7 @@ int main(int argc, char *argv[])
     return EXIT_SUCCESS;
 }
 
-static void parse_arguments(const struct p101_env *env, int argc, char *argv[], struct context* ctx)
+static void parse_arguments(const struct p101_env *env, int argc, char *argv[], struct context *ctx)
 {
     int opt;
 
@@ -139,10 +139,9 @@ _Noreturn static void usage(const char *program_name, int exit_code, const char 
 
 static p101_fsm_state_t a(const struct p101_env *env, struct p101_error *err, void *arg)
 {
-
-
     return AWAIT_CLIENT;
 }
+
 #pragma GCC diagnostic pop
 
 #pragma GCC diagnostic push
@@ -150,11 +149,13 @@ static p101_fsm_state_t a(const struct p101_env *env, struct p101_error *err, vo
 
 static p101_fsm_state_t setup_socket(const struct p101_env *env, struct p101_error *err, void *arg)
 {
-    const struct context *ctx = (struct context *)arg;
+    struct context *ctx = (struct context *)arg;
 
+    ctx->input_rdy = 0;
 
     return AWAIT_CLIENT;
 }
+
 #pragma GCC diagnostic pop
 
 #pragma GCC diagnostic push
@@ -162,11 +163,13 @@ static p101_fsm_state_t setup_socket(const struct p101_env *env, struct p101_err
 
 static p101_fsm_state_t await_client_connection(const struct p101_env *env, struct p101_error *err, void *arg)
 {
-    const struct context *ctx = (struct context *)arg;
+    struct context *ctx = (struct context *)arg;
 
+    ctx->input_rdy = 0;
 
     return AWAIT_CLIENT;
 }
+
 #pragma GCC diagnostic pop
 
 #pragma GCC diagnostic push
@@ -174,11 +177,13 @@ static p101_fsm_state_t await_client_connection(const struct p101_env *env, stru
 
 static p101_fsm_state_t start_client_thread(const struct p101_env *env, struct p101_error *err, void *arg)
 {
-    const struct context *ctx = (struct context *)arg;
+    struct context *ctx = (struct context *)arg;
 
+    ctx->input_rdy = 0;
 
     return AWAIT_CLIENT;
 }
+
 #pragma GCC diagnostic pop
 
 #pragma GCC diagnostic push
@@ -186,11 +191,13 @@ static p101_fsm_state_t start_client_thread(const struct p101_env *env, struct p
 
 static p101_fsm_state_t error_state(const struct p101_env *env, struct p101_error *err, void *arg)
 {
-    const struct context *ctx = (struct context *)arg;
+    struct context *ctx = (struct context *)arg;
 
+    ctx->input_rdy = 0;
 
     return AWAIT_CLIENT;
 }
+
 #pragma GCC diagnostic pop
 
 #pragma GCC diagnostic push
@@ -198,7 +205,9 @@ static p101_fsm_state_t error_state(const struct p101_env *env, struct p101_erro
 
 static p101_fsm_state_t state_error(const struct p101_env *env, struct p101_error *err, void *arg)
 {
-    const struct context *ctx = (struct context *)arg;
+    struct context *ctx = (struct context *)arg;
+
+    ctx->input_rdy = 0;
 
     return P101_FSM_EXIT;
 }

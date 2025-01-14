@@ -6,6 +6,50 @@
 
 #define BASE_TEN 10
 
+ssize_t read_fully(int sockfd, void *buf, ssize_t len, int *err)
+{
+    ssize_t total_read = 0;
+
+    while(total_read < len)
+    {
+        ssize_t bytes_read;
+
+        bytes_read = read(sockfd, (char *)buf + total_read, (size_t)(len - total_read));
+        if(bytes_read == -1)
+        {
+            perror("read_fully");
+            *err = -1;
+            return 0;
+        }
+
+        total_read += bytes_read;
+    }
+
+    return total_read;
+}
+
+ssize_t write_fully(int sockfd, const void *buf, ssize_t len, int *err)
+{
+    ssize_t total_written = 0;
+
+    while(total_written < len)
+    {
+        ssize_t bytes_written;
+
+        bytes_written = write(sockfd, (const char *)buf + total_written, (size_t)(len - total_written));
+        if(bytes_written == -1)
+        {
+            perror("write_fully");
+            *err = -1;
+            return 0;
+        }
+
+        total_written += bytes_written;
+    }
+
+    return total_written;
+}
+
 in_port_t parse_in_port_t(const char *str, int *err)
 {
     char *endptr;

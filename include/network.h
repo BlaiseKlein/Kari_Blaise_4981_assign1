@@ -5,23 +5,27 @@
 #ifndef NETWORK_H
 #define NETWORK_H
 #include "data_types.h"
+#include "http.h"
 #include <arpa/inet.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <inttypes.h>
 #include <netinet/in.h>
+#include <pthread.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
 
-in_port_t parse_in_port_t(const char *port_str, int *err);
-void      convert_address(const char *address, struct sockaddr_storage *addr, socklen_t *addr_len, int *err);
-int       socket_create(int domain, int type, int protocol, int *err);
-void      socket_bind(int sockfd, struct sockaddr_storage *addr, in_port_t port, int *err);
-void      socket_close(int sockfd);
-void      get_address_to_server(struct sockaddr_storage *addr, in_port_t port, int *err);
+in_port_t               parse_in_port_t(const char *port_str, int *err);
+void                    convert_address(const char *address, struct sockaddr_storage *addr, socklen_t *addr_len, int *err);
+int                     socket_create(int domain, int type, int protocol, int *err);
+void                    socket_bind(int sockfd, struct sockaddr_storage *addr, in_port_t port, int *err);
+void                    socket_close(int sockfd);
+void                    get_address_to_server(struct sockaddr_storage *addr, in_port_t port, int *err);
+ssize_t                 read_fully(int sockfd, void *buf, ssize_t len, int *err);
+ssize_t                 write_fully(int sockfd, const void *buf, ssize_t len, int *err);
 static p101_fsm_state_t create_receiving_stream(const struct p101_env *env, struct p101_error *err, void *arg);
 static p101_fsm_state_t await_client_connection(const struct p101_env *env, struct p101_error *err, void *arg);
 static p101_fsm_state_t start_client_thread(const struct p101_env *env, struct p101_error *err, void *arg);
@@ -69,14 +73,22 @@ static p101_fsm_state_t create_receiving_stream(const struct p101_env *env, stru
 
 static p101_fsm_state_t await_client_connection(const struct p101_env *env, struct p101_error *err, void *arg)
 {
-    struct context *ctx       = (struct context *)arg;
+    struct context *ctx = (struct context *)arg;
 
     while(1)
     {
+        int result;
 
+        result = accept(ctx->network.receive_fd, (struct sockaddr *)ctx->network.receive_addr, &ctx->network.receive_addr_len);
+        if(result != 0)
+        {
+            break;
+        }
+
+        return CLIENT_THREAD;
     }
 
-    return AWAIT_CLIENT;
+    return ERROR_STATE;
 }
 
 #pragma GCC diagnostic pop
@@ -87,11 +99,21 @@ static p101_fsm_state_t await_client_connection(const struct p101_env *env, stru
 
 static p101_fsm_state_t start_client_thread(const struct p101_env *env, struct p101_error *err, void *arg)
 {
-    struct context *ctx       = (struct context *)arg;
+    pthread_t       id;
+    struct context *ctx                    = (struct context *)arg;
+    int             thread_creation_result = 0;
 
-    while(1)
+    struct thread_state *client_state = (struct thread_state *)malloc(sizeof(struct thread_state));
+    if(client_state == NULL)
     {
+        return ERROR_STATE;
+    }
+    client_state->client_fd           = ctx->network.next_client_fd;
 
+    thread_creation_result = pthread_create(&id, NULL, parse_request, client_state);
+    if(thread_creation_result != 0)
+    {
+        return ERROR_STATE;
     }
 
     return AWAIT_CLIENT;
@@ -99,5 +121,4 @@ static p101_fsm_state_t start_client_thread(const struct p101_env *env, struct p
 
 #pragma GCC diagnostic pop
 
-
-#endif //NETWORK_H
+#endif    // NETWORK_H

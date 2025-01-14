@@ -5,8 +5,15 @@
 #ifndef HTTP_H
 #define HTTP_H
 #include "data_types.h"
+#include <stdlib.h>
+#include <stdnoreturn.h>
+#include <string.h>
 
-int parse_request(struct thread_state data);
-int read_until(int fd, char* delimiter);
+#define MAXMESSAGELENGTH 4096
+#define MAXLINELENGTH 2048
 
-#endif //HTTP_H
+void  *parse_request(void *data);
+size_t read_until(struct thread_state *data, const char *delimiter, int *err);
+void parse_headers(struct thread_state *data);
+
+#endif    // HTTP_H
