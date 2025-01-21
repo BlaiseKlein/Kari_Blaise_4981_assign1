@@ -13,7 +13,10 @@
 #define MAXLINELENGTH 2048
 
 void  *parse_request(void *data);
-size_t read_until(struct thread_state *data, const char *delimiter, int *err);
-void parse_headers(struct thread_state *data);
+size_t read_until(int fd, char *buffer, size_t len, const char *delimiter, int *err);
+int    parse_headers(struct thread_state *data);
+int    parse_request_line(struct thread_state *data);
+void   cleanup_headers(struct thread_state *data);
+void   cleanup_header(char *header);
 
 #endif    // HTTP_H

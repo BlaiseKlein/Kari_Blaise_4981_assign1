@@ -1,5 +1,6 @@
 #include "data_types.h"
 #include "http.h"
+#include "network.h"
 #include <p101_fsm/fsm.h>
 #include <p101_posix/p101_unistd.h>
 #include <stdio.h>
@@ -7,13 +8,10 @@
 
 static void             parse_arguments(const struct p101_env *env, int argc, char *argv[], struct context *ctx);
 _Noreturn static void   usage(const char *program_name, int exit_code, const char *message);
-static p101_fsm_state_t a(const struct p101_env *env, struct p101_error *err, void *arg);
-static p101_fsm_state_t setup_socket(const struct p101_env *env, struct p101_error *err, void *arg);
-static p101_fsm_state_t await_client_connection(const struct p101_env *env, struct p101_error *err, void *arg);
-static p101_fsm_state_t start_client_thread(const struct p101_env *env, struct p101_error *err, void *arg);
 static p101_fsm_state_t error_state(const struct p101_env *env, struct p101_error *err, void *arg);
 
 #define UNKNOWN_OPTION_MESSAGE_LEN 24
+#define MAXARGS 5
 
 int main(int argc, char *argv[])
 {
@@ -75,13 +73,14 @@ static void parse_arguments(const struct p101_env *env, int argc, char *argv[], 
 
     opterr = 0;
 
-    while((opt = p101_getopt(env, argc, argv, "i:p:")) != -1)
+    while((opt = p101_getopt(env, argc, argv, "i:p:h")) != -1)
     {
         switch(opt)
         {
             case 'i':
             {
-                ctx->arg.sys_addr = optarg;
+                ctx->arg.sys_addr     = optarg;
+                ctx->arg.sys_addr_len = (ssize_t)strlen(optarg);
                 break;
             }
             case 'p':
@@ -118,6 +117,10 @@ static void parse_arguments(const struct p101_env *env, int argc, char *argv[], 
     {
         usage(argv[0], EXIT_FAILURE, "Too many arguments.");
     }
+    if(argc != 2 && argc != MAXARGS)
+    {
+        usage(argv[0], EXIT_FAILURE, "Wrong number of arguments.");
+    }
 }
 
 _Noreturn static void usage(const char *program_name, int exit_code, const char *message)
@@ -137,77 +140,16 @@ _Noreturn static void usage(const char *program_name, int exit_code, const char 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 
-static p101_fsm_state_t a(const struct p101_env *env, struct p101_error *err, void *arg)
-{
-    return AWAIT_CLIENT;
-}
-
-#pragma GCC diagnostic pop
-
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wunused-parameter"
-
-static p101_fsm_state_t setup_socket(const struct p101_env *env, struct p101_error *err, void *arg)
-{
-    struct context *ctx = (struct context *)arg;
-
-    ctx->input_rdy = 0;
-
-    return AWAIT_CLIENT;
-}
-
-#pragma GCC diagnostic pop
-
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wunused-parameter"
-
-static p101_fsm_state_t await_client_connection(const struct p101_env *env, struct p101_error *err, void *arg)
-{
-    struct context *ctx = (struct context *)arg;
-
-    ctx->input_rdy = 0;
-
-    return AWAIT_CLIENT;
-}
-
-#pragma GCC diagnostic pop
-
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wunused-parameter"
-
-static p101_fsm_state_t start_client_thread(const struct p101_env *env, struct p101_error *err, void *arg)
-{
-    struct context *ctx = (struct context *)arg;
-
-    ctx->input_rdy = 0;
-
-    return AWAIT_CLIENT;
-}
-
-#pragma GCC diagnostic pop
-
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wunused-parameter"
-
 static p101_fsm_state_t error_state(const struct p101_env *env, struct p101_error *err, void *arg)
 {
     struct context *ctx = (struct context *)arg;
 
-    ctx->input_rdy = 0;
-
-    return AWAIT_CLIENT;
-}
-
-#pragma GCC diagnostic pop
-
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wunused-parameter"
-
-static p101_fsm_state_t state_error(const struct p101_env *env, struct p101_error *err, void *arg)
-{
-    struct context *ctx = (struct context *)arg;
-
-    ctx->input_rdy = 0;
+    if(ctx->network.receive_addr != NULL)
+    {
+        free(ctx->network.receive_addr);
+        ctx->network.receive_addr = NULL;
+    }
+    printf("An error occured");
 
     return P101_FSM_EXIT;
 }

@@ -50,13 +50,15 @@ ssize_t write_fully(int sockfd, const void *buf, ssize_t len, int *err)
     return total_written;
 }
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-parameter"
+
 in_port_t parse_in_port_t(const char *str, int *err)
 {
     char *endptr;
     long  parsed_value;
     *err = 0;
 
-    errno        = 0;
     parsed_value = strtol(str, &endptr, BASE_TEN);
 
     if(errno != 0)
@@ -65,11 +67,11 @@ in_port_t parse_in_port_t(const char *str, int *err)
     }
 
     // Check if there are any non-numeric characters in the input string
-    if(*endptr != '\0')
-    {
-        // usage(binary_name, EXIT_FAILURE, "Invalid characters in input.");
-        *err = -1;
-    }
+    // if(*endptr != '\0')
+    // {
+    //     // usage(binary_name, EXIT_FAILURE, "Invalid characters in input.");
+    //     *err = -1;
+    // }
 
     // Check if the parsed value is within the valid range for in_port_t
     if(parsed_value > UINT16_MAX)
@@ -80,6 +82,8 @@ in_port_t parse_in_port_t(const char *str, int *err)
 
     return (in_port_t)parsed_value;
 }
+
+#pragma GCC diagnostic pop
 
 void convert_address(const char *address, struct sockaddr_storage *addr, socklen_t *addr_len, int *err)
 {

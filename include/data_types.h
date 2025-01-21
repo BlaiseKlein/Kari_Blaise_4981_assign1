@@ -37,11 +37,25 @@ struct thread_state
 {
     int              client_fd;
     size_t           msg_size;
-    char            *request_string;
+    char            *request_line_string;
+    char            *date_header;
+    char            *pragma_header;
+    char            *auth_header;
+    char            *from_header;
+    char            *if_modified_since_header;
+    char            *referer_header;
+    char            *user_agent_header;
+    char            *allow_header;
+    char            *content_encoding_header;
+    char            *content_length_header;
+    char            *content_type_header;
+    char            *expires_header;
+    char            *last_modified_header;
     char            *resource_string;
     enum http_method method;
     size_t           response_len;
     int              err;
+    char            *version;
 };
 
 struct context
