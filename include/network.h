@@ -46,11 +46,12 @@ static p101_fsm_state_t await_client_connection(const struct p101_env *env, stru
         result = accept(ctx->network.receive_fd, (struct sockaddr *)ctx->network.receive_addr, &ctx->network.receive_addr_len);
         if(result != 0)
         {
-            printf("%d", result);
-            printf("%d", errno);
+            printf("%d\n", result);
+            printf("%d\n", errno);
+            close(ctx->network.receive_fd);
             break;
         }
-
+        close(ctx->network.receive_fd);
         return CLIENT_THREAD;
     }
 
@@ -65,24 +66,26 @@ static p101_fsm_state_t await_client_connection(const struct p101_env *env, stru
 
 static p101_fsm_state_t start_client_thread(const struct p101_env *env, struct p101_error *err, void *arg)
 {
-    // pthread_t       id;
-    struct context *ctx = (struct context *)arg;
-    // int             thread_creation_result = 0;
+    pthread_t       id;
+    struct context *ctx                    = (struct context *)arg;
+    int             thread_creation_result = 0;
 
     struct thread_state *client_state = (struct thread_state *)malloc(sizeof(struct thread_state));
     printf("Connection obtained\n");
     if(client_state == NULL)
     {
+        close(ctx->network.receive_fd);
         return ERROR_STATE;
     }
     client_state->client_fd = ctx->network.next_client_fd;
 
-    // thread_creation_result = pthread_create(&id, NULL, parse_request, client_state);
-    // if(thread_creation_result != 0)
-    // {
-    //     return ERROR_STATE;
-    // }
-    parse_request(client_state);
+    thread_creation_result = pthread_create(&id, NULL, parse_request, client_state);
+    if(thread_creation_result != 0)
+    {
+        close(ctx->network.receive_fd);
+        return ERROR_STATE;
+    }
+    // parse_request(client_state);
 
     return AWAIT_CLIENT;
 }
@@ -118,12 +121,17 @@ static p101_fsm_state_t setup_socket(const struct p101_env *env, struct p101_err
     {
         return ERROR_STATE;
     }
-
     ctx->network.msg_size = sizeof(uint16_t);
+
+    if(listen(ctx->network.receive_fd, SOMAXCONN) < 0)
+    {
+        close(ctx->network.receive_fd);
+        return ERROR_STATE;
+    }
+
+    printf("Listening for incoming connections...\n");
 
     return AWAIT_CLIENT;
 }
-
-#pragma GCC diagnostic pop
 
 #endif    // NETWORK_H
