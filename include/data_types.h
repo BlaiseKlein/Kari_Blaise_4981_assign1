@@ -6,8 +6,8 @@
 #define DATA_TYPES_H
 #include <netinet/in.h>
 #include <p101_fsm/fsm.h>
-#include <p101_posix/p101_unistd.h>
 #include <stdint.h>
+#include <sys/types.h>
 
 enum http_method
 {

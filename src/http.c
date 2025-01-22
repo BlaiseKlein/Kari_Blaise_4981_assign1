@@ -3,6 +3,8 @@
 //
 
 #include "http.h"
+#include <stdlib.h>
+#include <string.h>
 
 void *parse_request(void *context_data)
 {

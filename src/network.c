@@ -2,12 +2,15 @@
 // Created by blaise-klein on 1/9/25.
 //
 
-#pragma GCC diagnostic push
-
-#if defined(__GNUC__) && !defined(__clang__) && !defined(__FreeBSD__)
-    #pragma GCC diagnostic ignored "-Wanalyzer-fd-leak"
-#endif
 #include "network.h"
+#include "http.h"
+#include <netinet/in.h>
+#include <pthread.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
 #define BASE_TEN 10
 
@@ -160,21 +163,32 @@ void socket_bind(int sockfd, struct sockaddr_storage *addr, in_port_t port, int 
 
     printf("Binding to: %s:%u\n", addr_str, port);
 
-    if(bind(sockfd, (struct sockaddr *)addr, addr_len) == -1)
+    if(sockfd >= 0)
     {
-        perror("Binding failed");
-        fprintf(stderr, "Error code: %d\n", errno);
-        *err = -3;
-        return;
-    }
-    printf("Bound to socket: %s:%u\n", addr_str, port);
+        int bind_result;
+        int listen_result;
+        bind_result = bind(sockfd, (struct sockaddr *)addr, addr_len);
+        if(bind_result < 0)
+        {
+            perror("Binding failed");
+            fprintf(stderr, "Error code: %d\n", errno);
+            *err = -3;
+            return;
+        }
+        printf("Bound to socket: %s:%u\n", addr_str, port);
 
-    if(listen(sockfd, SOMAXCONN) < 0)
+        listen_result = listen(sockfd, SOMAXCONN);
+        if(listen_result < 0)
+        {
+            close(sockfd);
+            *err = -4;
+            printf("Listen failed, %d\n", errno);
+            // return;
+        }
+    }    // TODO FINISH
+    else
     {
-        close(sockfd);
-        *err = -4;
-        printf("Listen failed, %d\n", errno);
-        // return;
+        *err = -1;
     }
 
     // close(sockfd);
@@ -217,9 +231,6 @@ void get_address_to_server(struct sockaddr_storage *addr, in_port_t port, int *e
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 #pragma GCC diagnostic ignored "-Wunused-function"
 
-#if defined(__GNUC__) && !defined(__clang__) && !defined(__FreeBSD__)
-    #pragma GCC diagnostic ignored "-Wanalyzer-fd-leak"
-#endif
 p101_fsm_state_t await_client_connection(const struct p101_env *env, struct p101_error *err, void *arg)
 {
     int             result;
@@ -245,9 +256,6 @@ p101_fsm_state_t await_client_connection(const struct p101_env *env, struct p101
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 #pragma GCC diagnostic ignored "-Wunused-function"
 
-#if defined(__GNUC__) && !defined(__clang__) && !defined(__FreeBSD__)
-    #pragma GCC diagnostic ignored "-Wanalyzer-fd-leak"
-#endif
 p101_fsm_state_t start_client_thread(const struct p101_env *env, struct p101_error *err, void *arg)
 {
     pthread_t            id;
@@ -279,9 +287,6 @@ p101_fsm_state_t start_client_thread(const struct p101_env *env, struct p101_err
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 #pragma GCC diagnostic ignored "-Wunused-function"
 
-#if defined(__GNUC__) && !defined(__clang__) && !defined(__FreeBSD__)
-    #pragma GCC diagnostic ignored "-Wanalyzer-fd-leak"
-#endif
 p101_fsm_state_t setup_socket(const struct p101_env *env, struct p101_error *err, void *arg)
 {
     struct context *ctx       = (struct context *)arg;
@@ -298,7 +303,7 @@ p101_fsm_state_t setup_socket(const struct p101_env *env, struct p101_error *err
         return ERROR_STATE;
     }
     ctx->network.receive_fd = socket_create(ctx->network.receive_addr->ss_family, SOCK_STREAM, 0, &ctx->err);
-    if(ctx->err < 0)
+    if(ctx->err < 0 || ctx->network.receive_fd < 0)
     {
         return ERROR_STATE;
     }
@@ -314,5 +319,4 @@ p101_fsm_state_t setup_socket(const struct p101_env *env, struct p101_error *err
     return AWAIT_CLIENT;
 }
 
-#pragma GCC diagnostic pop
 #pragma GCC diagnostic pop

@@ -1,14 +1,11 @@
-#pragma GCC diagnostic push
-#if defined(__GNUC__) && !defined(__clang__) && !defined(__FreeBSD__)
-    #pragma GCC diagnostic ignored "-Wanalyzer-fd-leak"
-#endif
+
 #include "data_types.h"
-#include "http.h"
 #include "network.h"
 #include <p101_fsm/fsm.h>
 #include <p101_posix/p101_unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 static void             parse_arguments(const struct p101_env *env, int argc, char *argv[], struct context *ctx);
 _Noreturn static void   usage(const char *program_name, int exit_code, const char *message);
@@ -159,7 +156,5 @@ static p101_fsm_state_t error_state(const struct p101_env *env, struct p101_erro
 
     return P101_FSM_EXIT;
 }
-
-#pragma GCC diagnostic pop
 
 #pragma GCC diagnostic pop

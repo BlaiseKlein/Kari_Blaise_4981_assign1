@@ -5,9 +5,6 @@
 #ifndef HTTP_H
 #define HTTP_H
 #include "data_types.h"
-#include <stdlib.h>
-#include <stdnoreturn.h>
-#include <string.h>
 
 #define MAXMESSAGELENGTH 4096
 #define MAXLINELENGTH 2048
