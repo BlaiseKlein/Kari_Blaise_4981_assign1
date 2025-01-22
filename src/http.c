@@ -5,6 +5,7 @@
 #include "http.h"
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 void *parse_request(void *context_data)
 {
@@ -70,7 +71,7 @@ size_t read_until(int fd, char *buffer, size_t len, const char *delimiter, int *
     {
         ssize_t result;
 
-        result = read(fd, message + buffer_end, len);
+        result = read(fd, message + buffer_end, 1);
         if(result < 0)
         {
             *err = -1;
