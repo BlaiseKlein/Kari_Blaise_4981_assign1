@@ -18,5 +18,6 @@ int    parse_headers(struct thread_state *data);
 int    parse_request_line(struct thread_state *data);
 void   cleanup_headers(struct thread_state *data);
 void   cleanup_header(char *header);
+int    parse_header(struct thread_state *data, char **buffer, bool *breaks, bool *continues);
 
 #endif    // HTTP_H

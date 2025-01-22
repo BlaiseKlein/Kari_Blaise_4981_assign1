@@ -38,6 +38,7 @@ struct thread_state
     int              client_fd;
     size_t           msg_size;
     char            *request_line_string;
+    size_t           request_line_string_len;
     char            *date_header;
     char            *pragma_header;
     char            *auth_header;

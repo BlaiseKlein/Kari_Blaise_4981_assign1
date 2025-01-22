@@ -25,6 +25,7 @@ void *parse_request(void *context_data)
     }
 
     data->request_line_string[result] = '\0';
+    data->request_line_string_len     = strnlen(data->request_line_string, MAXLINELENGTH);
     request_line_result               = parse_request_line(data);
     if(request_line_result < 0)
     {
@@ -42,7 +43,6 @@ void *parse_request(void *context_data)
     if(data->method == GET)
     {
         // Call get function here
-        data->method = GET;
         return NULL;
     }
     if(data->method == HEAD)
@@ -64,7 +64,7 @@ size_t read_until(int fd, char *buffer, size_t len, const char *delimiter, int *
         return 0;
     }
 
-    while(strstr(message, delimiter) == message)
+    do
     {
         ssize_t result;
 
@@ -83,7 +83,7 @@ size_t read_until(int fd, char *buffer, size_t len, const char *delimiter, int *
             return 0;
         }
         buffer_end += result;
-    }
+    } while(strstr(message, delimiter) == NULL);
 
     memset(buffer, 0, len);
     memcpy(buffer, message, (size_t)buffer_end);
@@ -123,9 +123,202 @@ int parse_request_line(struct thread_state *data)
         free(data->resource_string);
         return -1;
     }
-    memcpy(data->resource_string, path, (strlen(data->request_line_string) - (size_t)path + 1));
+    memcpy(data->version, version, strlen(version) - 2);
 
     return 0;
+}
+
+int parse_header(struct thread_state *data, char **buffer, bool *breaks, bool *continues)
+{
+    char       *header;
+    char       *info;
+    const char *colon_place = NULL;
+    info                    = (char *)malloc(MAXLINELENGTH);
+    if(info == NULL)
+    {
+        return -1;
+    }
+    header = (char *)malloc(MAXLINELENGTH * sizeof(char));
+    if(header == NULL)
+    {
+        free(info);
+        return -1;
+    }
+    if((*buffer)[0] == '\r' && (*buffer)[1] == '\n')
+    {
+        free(info);
+        free(header);
+        *breaks = true;
+        return -1;
+    }
+
+    // Get the position of the colon in the header string
+    colon_place = strchr(*buffer, ':');
+    if(colon_place == NULL)
+    {
+        free(header);
+        free(info);
+        return -1;
+    }
+
+    // Read up to colon_place and get the header name
+    for(int i = 0; *buffer != colon_place; i++, (*buffer)++)
+    {
+        header[i] = (*buffer)[0];
+    }
+
+    // Read after the colon_place to get the header information
+    (*buffer)++;    // One for the colon
+    (*buffer)++;    // One more for the space
+    memset(info, 0, MAXLINELENGTH);
+    for(int i = 0; (*buffer)[0] != '\r' && (*buffer)[1] != '\n'; i++, (*buffer)++)
+    {
+        info[i] = (*buffer)[0];
+    }
+
+    // Switch statement to load the info into the correct place
+    if(strcmp(header, "Date") == 0)
+    {
+        data->date_header = (char *)malloc(MAXLINELENGTH);
+        if(data->date_header == NULL)
+        {
+            data->date_header = NULL;
+            goto cleanup;
+        }
+        memcpy(data->date_header, info, MAXLINELENGTH);
+    }
+    else if(strcmp(header, "Pragma") == 0)
+    {
+        data->pragma_header = (char *)malloc(MAXLINELENGTH);
+        if(data->pragma_header == NULL)
+        {
+            data->pragma_header = NULL;
+            goto cleanup;
+        }
+        memcpy(data->pragma_header, info, MAXLINELENGTH);
+    }
+    else if(strcmp(header, "Author") == 0)
+    {
+        data->auth_header = (char *)malloc(MAXLINELENGTH);
+        if(data->auth_header == NULL)
+        {
+            data->auth_header = NULL;
+            goto cleanup;
+        }
+        memcpy(data->auth_header, info, MAXLINELENGTH);
+    }
+    else if(strcmp(header, "From") == 0)
+    {
+        data->from_header = (char *)malloc(MAXLINELENGTH);
+        if(data->from_header == NULL)
+        {
+            data->from_header = NULL;
+            goto cleanup;
+        }
+        memcpy(data->from_header, info, MAXLINELENGTH);
+    }
+    else if(strcmp(header, "If-Modified-Since") == 0)
+    {
+        data->if_modified_since_header = (char *)malloc(MAXLINELENGTH);
+        if(data->if_modified_since_header == NULL)
+        {
+            data->if_modified_since_header = NULL;
+            goto cleanup;
+        }
+        memcpy(data->if_modified_since_header, info, MAXLINELENGTH);
+    }
+    else if(strcmp(header, "Referer") == 0)
+    {
+        data->referer_header = (char *)malloc(MAXLINELENGTH);
+        if(data->referer_header == NULL)
+        {
+            data->referer_header = NULL;
+            goto cleanup;
+        }
+        memcpy(data->referer_header, info, MAXLINELENGTH);
+    }
+    else if(strcmp(header, "User-Agent") == 0)
+    {
+        data->user_agent_header = (char *)malloc(MAXLINELENGTH);
+        if(data->user_agent_header == NULL)
+        {
+            data->user_agent_header = NULL;
+            goto cleanup;
+        }
+    }
+    else if(strcmp(header, "Allow") == 0)
+    {
+        data->allow_header = (char *)malloc(MAXLINELENGTH);
+        if(data->allow_header == NULL)
+        {
+            data->allow_header = NULL;
+            goto cleanup;
+        }
+        memcpy(data->allow_header, info, MAXLINELENGTH);
+    }
+    else if(strcmp(header, "Content-Encoding") == 0)
+    {
+        data->content_encoding_header = (char *)malloc(MAXLINELENGTH);
+        if(data->content_encoding_header == NULL)
+        {
+            data->content_encoding_header = NULL;
+            goto cleanup;
+        }
+        memcpy(data->content_encoding_header, info, MAXLINELENGTH);
+    }
+    else if(strcmp(header, "Content-Length") == 0)
+    {
+        data->content_length_header = (char *)malloc(MAXLINELENGTH);
+        if(data->content_length_header == NULL)
+        {
+            data->content_length_header = NULL;
+            goto cleanup;
+        }
+        memcpy(data->content_length_header, info, MAXLINELENGTH);
+    }
+    else if(strcmp(header, "Content-Type") == 0)
+    {
+        data->content_type_header = (char *)malloc(MAXLINELENGTH);
+        if(data->content_type_header == NULL)
+        {
+            data->content_type_header = NULL;
+            goto cleanup;
+        }
+        memcpy(data->content_type_header, info, MAXLINELENGTH);
+    }
+    else if(strcmp(header, "Expires") == 0)
+    {
+        data->expires_header = (char *)malloc(MAXLINELENGTH);
+        if(data->expires_header == NULL)
+        {
+            data->expires_header = NULL;
+            goto cleanup;
+        }
+        memcpy(data->expires_header, info, MAXLINELENGTH);
+    }
+    else if(strcmp(header, "Last-Modified") == 0)
+    {
+        data->last_modified_header = (char *)malloc(MAXLINELENGTH);
+        if(data->last_modified_header == NULL)
+        {
+            data->last_modified_header = NULL;
+            goto cleanup;
+        }
+        memcpy(data->last_modified_header, info, MAXLINELENGTH);
+    }
+
+    free(info);
+    free(header);
+    free(*buffer);
+    *continues = true;
+    return 0;
+
+cleanup:
+    free(info);
+    free(header);
+    free(*buffer);
+    cleanup_headers(data);
+    return -1;
 }
 
 int parse_headers(struct thread_state *data)
@@ -151,182 +344,24 @@ int parse_headers(struct thread_state *data)
 
     while(read_until(data->client_fd, buffer, MAXLINELENGTH, "\r\n", &data->err) > 0)
     {
-        char       *header      = (char *)malloc(MAXLINELENGTH);
-        char       *info        = (char *)malloc(MAXLINELENGTH);
-        const char *colon_place = NULL;
-        if(buffer[0] == '\r' && buffer[1] == '\n')
+        bool breaks, continues;
+        int  value;
+        breaks    = false;
+        continues = false;
+        value     = parse_header(data, &buffer, &breaks, &continues);
+        if(breaks)
         {
-            free(info);
-            free(header);
             break;
         }
-
-        // Get the position of the colon in the header string
-        colon_place = strchr(buffer, ':');
-        if(colon_place == NULL)
+        if(continues)
+        {
+            continue;
+        }
+        if(value < 0)
         {
             free(buffer);
-            free(header);
-            free(info);
-            return -1;
+            return value;
         }
-
-        // Read up to colon_place and get the header name
-        for(int i = 0; buffer != colon_place; i++, buffer++)
-        {
-            header[i] = buffer[0];
-        }
-
-        // Read after the colon_place to get the header information
-        buffer++;    // One for the colon
-        buffer++;    // One more for the space
-        memset(info, 0, MAXLINELENGTH);
-        for(int i = 0; buffer[0] != '\r' && buffer[1] != '\n'; i++, buffer++)
-        {
-            info[i] = buffer[0];
-        }
-
-        // Switch statement to load the info into the correct place
-        if(strcmp(header, "Date") == 0)
-        {
-            data->date_header = (char *)malloc(MAXLINELENGTH);
-            if(data->date_header == NULL)
-            {
-                data->date_header = NULL;
-                goto cleanup;
-            }
-            memcpy(data->date_header, info, MAXLINELENGTH);
-        }
-        else if(strcmp(header, "Pragma") == 0)
-        {
-            data->pragma_header = (char *)malloc(MAXLINELENGTH);
-            if(data->pragma_header == NULL)
-            {
-                data->pragma_header = NULL;
-                goto cleanup;
-            }
-            memcpy(data->pragma_header, info, MAXLINELENGTH);
-        }
-        else if(strcmp(header, "Author") == 0)
-        {
-            data->auth_header = (char *)malloc(MAXLINELENGTH);
-            if(data->auth_header == NULL)
-            {
-                data->auth_header = NULL;
-                goto cleanup;
-            }
-            memcpy(data->auth_header, info, MAXLINELENGTH);
-        }
-        else if(strcmp(header, "From") == 0)
-        {
-            data->from_header = (char *)malloc(MAXLINELENGTH);
-            if(data->from_header == NULL)
-            {
-                data->from_header = NULL;
-                goto cleanup;
-            }
-            memcpy(data->from_header, info, MAXLINELENGTH);
-        }
-        else if(strcmp(header, "If-Modified-Since") == 0)
-        {
-            data->if_modified_since_header = (char *)malloc(MAXLINELENGTH);
-            if(data->if_modified_since_header == NULL)
-            {
-                data->if_modified_since_header = NULL;
-                goto cleanup;
-            }
-            memcpy(data->if_modified_since_header, info, MAXLINELENGTH);
-        }
-        else if(strcmp(header, "Referer") == 0)
-        {
-            data->referer_header = (char *)malloc(MAXLINELENGTH);
-            if(data->referer_header == NULL)
-            {
-                data->referer_header = NULL;
-                goto cleanup;
-            }
-            memcpy(data->referer_header, info, MAXLINELENGTH);
-        }
-        else if(strcmp(header, "User-Agent") == 0)
-        {
-            data->user_agent_header = (char *)malloc(MAXLINELENGTH);
-            if(data->user_agent_header == NULL)
-            {
-                data->user_agent_header = NULL;
-                goto cleanup;
-            }
-        }
-        else if(strcmp(header, "Allow") == 0)
-        {
-            data->allow_header = (char *)malloc(MAXLINELENGTH);
-            if(data->allow_header == NULL)
-            {
-                data->allow_header = NULL;
-                goto cleanup;
-            }
-            memcpy(data->allow_header, info, MAXLINELENGTH);
-        }
-        else if(strcmp(header, "Content-Encoding") == 0)
-        {
-            data->content_encoding_header = (char *)malloc(MAXLINELENGTH);
-            if(data->content_encoding_header == NULL)
-            {
-                data->content_encoding_header = NULL;
-                goto cleanup;
-            }
-            memcpy(data->content_encoding_header, info, MAXLINELENGTH);
-        }
-        else if(strcmp(header, "Content-Length") == 0)
-        {
-            data->content_length_header = (char *)malloc(MAXLINELENGTH);
-            if(data->content_length_header == NULL)
-            {
-                data->content_length_header = NULL;
-                goto cleanup;
-            }
-            memcpy(data->content_length_header, info, MAXLINELENGTH);
-        }
-        else if(strcmp(header, "Content-Type") == 0)
-        {
-            data->content_type_header = (char *)malloc(MAXLINELENGTH);
-            if(data->content_type_header == NULL)
-            {
-                data->content_type_header = NULL;
-                goto cleanup;
-            }
-            memcpy(data->content_type_header, info, MAXLINELENGTH);
-        }
-        else if(strcmp(header, "Expires") == 0)
-        {
-            data->expires_header = (char *)malloc(MAXLINELENGTH);
-            if(data->expires_header == NULL)
-            {
-                data->expires_header = NULL;
-                goto cleanup;
-            }
-            memcpy(data->expires_header, info, MAXLINELENGTH);
-        }
-        else if(strcmp(header, "Last-Modified") == 0)
-        {
-            data->last_modified_header = (char *)malloc(MAXLINELENGTH);
-            if(data->last_modified_header == NULL)
-            {
-                data->last_modified_header = NULL;
-                goto cleanup;
-            }
-            memcpy(data->last_modified_header, info, MAXLINELENGTH);
-        }
-
-        free(info);
-        free(header);
-        continue;
-
-    cleanup:
-        free(info);
-        free(header);
-        free(buffer);
-        cleanup_headers(data);
-        return -1;
     }
 
     free(buffer);

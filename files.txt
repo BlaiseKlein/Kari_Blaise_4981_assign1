@@ -1,1 +1,2 @@
 main src/main.c include/data_types.h src/network.c include/network.h include/data_types.h src/http.c include/http.h p101_env p101_error p101_fsm p101_posix
+test src/test_run.c include/data_types.h include/http.h src/http.c

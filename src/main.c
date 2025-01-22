@@ -1,3 +1,7 @@
+#pragma GCC diagnostic push
+#if defined(__GNUC__) && !defined(__clang__) && !defined(__FreeBSD__)
+    #pragma GCC diagnostic ignored "-Wanalyzer-fd-leak"
+#endif
 #include "data_types.h"
 #include "http.h"
 #include "network.h"
@@ -49,6 +53,8 @@ int main(int argc, char *argv[])
             {SETUP_SOCKET,  ERROR_STATE,   error_state            },
             {AWAIT_CLIENT,  CLIENT_THREAD, start_client_thread    },
             {AWAIT_CLIENT,  ERROR_STATE,   error_state            },
+            {CLIENT_THREAD, AWAIT_CLIENT,  await_client_connection},
+            {CLIENT_THREAD, ERROR_STATE,   error_state            },
             {ERROR_STATE,   P101_FSM_EXIT, NULL                   }
         };
         p101_fsm_state_t from_state;
@@ -153,5 +159,7 @@ static p101_fsm_state_t error_state(const struct p101_env *env, struct p101_erro
 
     return P101_FSM_EXIT;
 }
+
+#pragma GCC diagnostic pop
 
 #pragma GCC diagnostic pop

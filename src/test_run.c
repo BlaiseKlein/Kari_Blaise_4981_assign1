@@ -4,43 +4,33 @@
 // TODO DELETE THIS FILE BEFORE HANDIN
 
 #include "http.h"
-#include "network.h"
+#include <stdio.h>
 
 int main(void)
 {
-    char   *buffer;
-    ssize_t msg_size = 4;
-    int     err      = 0;
-    int     fd       = open("./test.txt", O_RDWR | O_CLOEXEC);
-    if(fd == -1)
-    {
-        perror("open");
-        exit(EXIT_FAILURE);
-    }
-    buffer = (char *)malloc((size_t)msg_size * sizeof(char));
-    if(buffer == NULL)
+    struct thread_state *thread_state;
+    const char          *http = "GET /en-US/docs/Web/HTTP/Messages HTTP/1.1\r\n";
+    //                                "Host: example.com\r\n"
+    //                                "Content-Type: application/x-www-form-urlencoded\r\n"
+    //                                "Content-Length: 50\r\n";
+
+    thread_state = (struct thread_state *)malloc(sizeof(struct thread_state));
+    if(thread_state == NULL)
     {
         perror("malloc");
-        close(fd);
         exit(EXIT_FAILURE);
     }
 
-    buffer[0] = 't';
-    buffer[1] = 'e';
-    buffer[2] = 's';
-    buffer[3] = 't';
-
-    // write_fully(fd, buffer, msg_size, &err);
-
-    read_fully(fd, buffer, msg_size, &err);
-
-    if(err == 0)
+    thread_state->request_line_string = (char *)malloc(strlen(http) + 1);
+    if(thread_state->request_line_string == NULL)
     {
-        printf("read: %c%c%c%c\n", buffer[0], buffer[1], buffer[2], buffer[3]);
+        perror("malloc");
+        exit(EXIT_FAILURE);
     }
-
-    free(buffer);
-    close(fd);
+    thread_state->request_line_string_len = strlen(http);
+    strlcpy(thread_state->request_line_string, http, thread_state->request_line_string_len);
+    parse_request_line(thread_state);
+    free(thread_state->request_line_string);
 
     return 0;
 }
