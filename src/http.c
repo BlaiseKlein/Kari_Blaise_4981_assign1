@@ -86,7 +86,7 @@ size_t read_until(int fd, char *buffer, size_t len, const char *delimiter, int *
             return 0;
         }
         buffer_end += result;
-    } while(strstr(message, delimiter) == NULL);
+    } while(buffer_end < 2 || (message[buffer_end - 2] != *delimiter && buffer[buffer_end - 1] != *delimiter));
 
     memset(buffer, 0, len);
     memcpy(buffer, message, (size_t)buffer_end);
