@@ -3,6 +3,8 @@
 //
 
 #include "http.h"
+#include "serve_request.h"
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -45,13 +47,23 @@ void *parse_request(void *context_data)
 
     if(data->method == GET)
     {
-        // Call get function here
+        printf("GET request\n");
+        handle_get_request(data->client_fd, data->request_line_string);
         return NULL;
     }
     if(data->method == HEAD)
     {
-        // Call head function here
+        printf("HEAD request\n");
+        handle_head_request(data->client_fd, data->request_line_string);
         return NULL;
+    }
+    printf("OTHER request\n");
+    {
+        const char *resp = "HTTP/1.0 405 Method Not Allowed\r\n"
+                           "Content-Type: text/plain\r\n\r\n"
+                           "405 Method Not Allowed";
+        write(data->client_fd, resp, strlen(resp));
+        close(data->client_fd);
     }
 
     return data;
