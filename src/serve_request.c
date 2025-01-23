@@ -11,7 +11,7 @@
 #include <unistd.h>
 
 #define BUFFER_SIZE 1024
-#define SERVER_ROOT "./"
+#define SERVER_ROOT "."
 
 #define OK 200
 #define NOT_FOUND 404
@@ -21,6 +21,7 @@
 
 const char *get_mime_type(const char *filepath)
 {
+    printf("inside mime_type %s\n", filepath);
     if(strstr(filepath, ".html"))
     {
         return "text/html";
@@ -63,8 +64,10 @@ void handle_get_request(int client_fd, const char *resource_path)
     const char *mime_type;
 
     int status_code = construct_and_validate_path(resource_path, file_path, sizeof(file_path), &path_stat);
+    printf("inside handle get request %s\n", file_path);
     if(status_code != OK)
     {
+        printf("%d\n", status_code);
         construct_http_header(header, sizeof(header), status_code, "text/plain", 0);
         write(client_fd, header, strlen(header));
         return;
@@ -82,6 +85,7 @@ void handle_get_request(int client_fd, const char *resource_path)
     }
 
     construct_http_header(header, sizeof(header), OK, mime_type, (size_t)path_stat.st_size);
+    printf("header: %s\n", header);
     write(client_fd, header, strlen(header));
 
     // Send file content
@@ -119,7 +123,7 @@ int construct_and_validate_path(const char *resource_path, char *file_path, size
 {
     // Construct the file path
     snprintf(file_path, file_path_size, "%s%s", SERVER_ROOT, resource_path);
-
+    printf("construct and validate %s\n", file_path);
     // Default to index.html for directory-like paths
     if(resource_path[strlen(resource_path) - 1] == '/')
     {
@@ -127,24 +131,28 @@ int construct_and_validate_path(const char *resource_path, char *file_path, size
     }
 
     // Prevent directory traversal attacks
-    if(strstr(resource_path, ".."))
+    if(strstr(resource_path, "/../"))
     {
-        return BAD_REQUEST;    // Bad Request
+        printf("directory traversal\n");
+        return BAD_REQUEST;
     }
 
     // Check file existence
     if(stat(file_path, path_stat) < 0)
     {
-        return NOT_FOUND;    // Not Found
+        if(errno == EACCES)
+        {
+            printf("Permission denied for %s\n", file_path);
+            return FORBIDDEN;
+        }
+
+        {
+            printf("File not found: %s\n", file_path);
+            return NOT_FOUND;
+        }
     }
 
-    // Ensure path is not a directory
-    if(S_ISDIR(path_stat->st_mode))
-    {
-        return FORBIDDEN;    // Forbidden
-    }
-
-    return OK;    // OK
+    return OK;
 }
 
 void construct_http_header(char *header, size_t header_size, int status_code, const char *mime_type, size_t content_length)
