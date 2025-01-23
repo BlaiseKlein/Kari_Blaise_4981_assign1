@@ -5,7 +5,6 @@
 #include "http.h"
 #include "serve_request.h"
 #include <stdio.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -55,14 +54,14 @@ void *parse_request(void *context_data)
 
     if(data->method == GET)
     {
-        printf("GET request\n");
-        handle_get_request(data->client_fd, data->request_line_string);
+        printf("GET request %s\n", data->resource_string);
+        handle_get_request(data->client_fd, data->resource_string);
         return NULL;
     }
     if(data->method == HEAD)
     {
         printf("HEAD request\n");
-        handle_head_request(data->client_fd, data->request_line_string);
+        handle_head_request(data->client_fd, data->resource_string);
         return NULL;
     }
     printf("OTHER request\n");
@@ -71,9 +70,8 @@ void *parse_request(void *context_data)
                            "Content-Type: text/plain\r\n\r\n"
                            "405 Method Not Allowed";
         write(data->client_fd, resp, strlen(resp));
-        close(data->client_fd);
     }
-
+    close(data->client_fd);
     return data;
 }
 
@@ -125,6 +123,10 @@ int parse_request_line(struct thread_state *data)
     method  = strtok_r(data->request_line_string, " ", &rest);
     path    = strtok_r(NULL, " ", &rest);
     version = strtok_r(NULL, " ", &rest);
+    if(method == NULL)
+    {
+        return -1;
+    }
     if(strcmp(method, "GET") == 0)
     {
         data->method = GET;
