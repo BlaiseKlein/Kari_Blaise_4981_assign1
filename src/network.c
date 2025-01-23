@@ -122,6 +122,11 @@ int socket_create(int domain, int type, int protocol, int *err)
     return sockfd;
 }
 
+#if defined(__GNUC__) && !defined(__clang__)
+    #pragma GCC diagnostic push
+    #pragma GCC diagnostic ignored "-Wanalyzer-fd-leak"
+#endif
+
 void socket_bind(int sockfd, struct sockaddr_storage *addr, in_port_t port, int *err)
 {
     char      addr_str[INET6_ADDRSTRLEN];
@@ -180,19 +185,20 @@ void socket_bind(int sockfd, struct sockaddr_storage *addr, in_port_t port, int 
         listen_result = listen(sockfd, SOMAXCONN);
         if(listen_result < 0)
         {
-            close(sockfd);
+            perror("Listening failed");
+            fprintf(stderr, "Error code: %d\n", errno);
             *err = -4;
-            printf("Listen failed, %d\n", errno);
-            // return;
+            return;
         }
     }    // TODO FINISH
     else
     {
         *err = -1;
     }
-
-    // close(sockfd);
 }
+#if defined(__GNUC__) && !defined(__clang__)
+    #pragma GCC diagnostic pop
+#endif
 
 void socket_close(int sockfd)
 {
@@ -289,6 +295,7 @@ p101_fsm_state_t start_client_thread(const struct p101_env *env, struct p101_err
 
 p101_fsm_state_t setup_socket(const struct p101_env *env, struct p101_error *err, void *arg)
 {
+    int             sockfd;
     struct context *ctx       = (struct context *)arg;
     ctx->network.receive_addr = (struct sockaddr_storage *)malloc(sizeof(struct sockaddr_storage));
 
@@ -302,19 +309,22 @@ p101_fsm_state_t setup_socket(const struct p101_env *env, struct p101_error *err
     {
         return ERROR_STATE;
     }
-    ctx->network.receive_fd = socket_create(ctx->network.receive_addr->ss_family, SOCK_STREAM, 0, &ctx->err);
-    if(ctx->err < 0 || ctx->network.receive_fd < 0)
-    {
-        return ERROR_STATE;
-    }
-    socket_bind(ctx->network.receive_fd, ctx->network.receive_addr, ctx->network.receive_port, &ctx->err);
+    sockfd = socket_create(ctx->network.receive_addr->ss_family, SOCK_STREAM, 0, &ctx->err);
     if(ctx->err < 0)
     {
-        close(ctx->network.receive_fd);
+        close(sockfd);
+        perror("Create failed");
+        return ERROR_STATE;
+    }
+    socket_bind(sockfd, ctx->network.receive_addr, ctx->network.receive_port, &ctx->err);
+    if(ctx->err < 0)
+    {
+        close(sockfd);
         return ERROR_STATE;
     }
     ctx->network.msg_size = sizeof(uint16_t);
 
+    ctx->network.receive_fd = sockfd;
     printf("Listening for incoming connections...\n");
     return AWAIT_CLIENT;
 }

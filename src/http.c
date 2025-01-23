@@ -3,12 +3,14 @@
 //
 
 #include "http.h"
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
 void *parse_request(void *context_data)
 {
+    char                 divider[MAXLINELENGTH];
     int                  header_result       = 0;
     int                  request_line_result = 0;
     int                  err                 = 0;
@@ -20,7 +22,7 @@ void *parse_request(void *context_data)
         return 0;
     }
 
-    result = (ssize_t)read_until(data->client_fd, data->request_line_string, MAXLINELENGTH, "\r\n", &err);
+    result = (ssize_t)read_until(data->client_fd, data->request_line_string, MAXLINELENGTH * sizeof(char), "\r\n", &err);
     if(result < 0)
     {
         free(data->request_line_string);
@@ -35,8 +37,14 @@ void *parse_request(void *context_data)
         free(data->request_line_string);
         return NULL;
     }
+    result = (ssize_t)read_until(data->client_fd, divider, MAXLINELENGTH * sizeof(char), "\r\n", &err);
+    if(result < 0)
+    {
+        free(data->request_line_string);
+        return NULL;
+    }
 
-    header_result = parse_headers(data);
+    header_result = parse_request_headers(data);
     if(header_result < 0)
     {
         free(data->request_line_string);
@@ -72,7 +80,7 @@ size_t read_until(int fd, char *buffer, size_t len, const char *delimiter, int *
         ssize_t result;
 
         result = read(fd, message + buffer_end, 1);
-        if(result < 0)
+        if(result <= 0)
         {
             *err = -1;
             free(message);
@@ -86,7 +94,7 @@ size_t read_until(int fd, char *buffer, size_t len, const char *delimiter, int *
             return 0;
         }
         buffer_end += result;
-    } while(buffer_end < 2 || (message[buffer_end - 2] != *delimiter && buffer[buffer_end - 1] != *delimiter));
+    } while(buffer_end < 2 || (message[buffer_end - 2] != delimiter[0] && message[buffer_end - 1] != delimiter[1]));
 
     memset(buffer, 0, len);
     memcpy(buffer, message, (size_t)buffer_end);
@@ -312,21 +320,20 @@ int parse_header(struct thread_state *data, char **buffer, bool *breaks, bool *c
 
     free(info);
     free(header);
-    free(*buffer);
     *continues = true;
     return 0;
 
 cleanup:
     free(info);
     free(header);
-    free(*buffer);
     cleanup_headers(data);
     return -1;
 }
 
-int parse_headers(struct thread_state *data)
+int parse_request_headers(struct thread_state *data)
 {
     char *buffer = (char *)malloc(MAXLINELENGTH);
+    char *start  = buffer;
     if(buffer == NULL)
     {
         return -1;
@@ -358,6 +365,7 @@ int parse_headers(struct thread_state *data)
         }
         if(continues)
         {
+            buffer = start;
             continue;
         }
         if(value < 0)
@@ -367,7 +375,7 @@ int parse_headers(struct thread_state *data)
         }
     }
 
-    free(buffer);
+    free(start);
     return 0;
 }
 
