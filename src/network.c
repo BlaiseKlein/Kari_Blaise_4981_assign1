@@ -322,7 +322,6 @@ p101_fsm_state_t setup_socket(const struct p101_env *env, struct p101_error *err
         close(sockfd);
         return ERROR_STATE;
     }
-    ctx->network.msg_size = sizeof(uint16_t);
 
     ctx->network.receive_fd = sockfd;
     printf("Listening for incoming connections...\n");

@@ -24,19 +24,16 @@ struct arguments
 
 struct network_state
 {
-    size_t                   msg_size;
     int                      next_client_fd;
     int                      receive_fd;
     struct sockaddr_storage *receive_addr;
     socklen_t                receive_addr_len;
     in_port_t                receive_port;
-    uint16_t                 current_move;
 };
 
 struct thread_state
 {
     int              client_fd;
-    size_t           msg_size;
     char            *request_line_string;
     size_t           request_line_string_len;
     char            *date_header;
@@ -54,7 +51,6 @@ struct thread_state
     char            *last_modified_header;
     char            *resource_string;
     enum http_method method;
-    size_t           response_len;
     int              err;
     char            *version;
 };
@@ -64,8 +60,6 @@ struct context
     struct arguments     arg;
     struct network_state network;
     int                  err;
-    int                  input_rdy;
-    int                  net_rdy;
 };
 
 enum application_states

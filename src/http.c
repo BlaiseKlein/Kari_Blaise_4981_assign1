@@ -5,7 +5,6 @@
 #include "http.h"
 #include "serve_request.h"
 #include <stdio.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -71,9 +70,9 @@ void *parse_request(void *context_data)
                            "Content-Type: text/plain\r\n\r\n"
                            "405 Method Not Allowed";
         write(data->client_fd, resp, strlen(resp));
-        close(data->client_fd);
     }
 
+    close(data->client_fd);
     return data;
 }
 
