@@ -16,5 +16,6 @@ int    parse_request_line(struct thread_state *data);
 void   cleanup_headers(struct thread_state *data);
 void   cleanup_header(char *header);
 int    parse_header(struct thread_state *data, char **buffer, bool *breaks, bool *continues);
+void   parse_path_arguments(char* start_resource_string, char* end_resource_string);
 
 #endif    // HTTP_H

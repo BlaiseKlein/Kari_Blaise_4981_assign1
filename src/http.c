@@ -113,11 +113,31 @@ size_t read_until(int fd, char *buffer, size_t len, const char *delimiter, int *
     return (size_t)buffer_end;
 }
 
+void   parse_path_arguments(char* start_resource_string, char* end_resource_string)
+{
+    const char unix_slash = '/';
+    const char mark_start_args = '?';
+
+    for(; start_resource_string != end_resource_string; end_resource_string--)
+    {
+        if (*end_resource_string == unix_slash)
+        {
+            return;
+        }
+        if (*end_resource_string == mark_start_args)
+        {
+            *end_resource_string = '\0';
+            return;
+        }
+    }
+}
 int parse_request_line(struct thread_state *data)
 {
     const char *method;
     const char *path;
     const char *version;
+    char* start_resource_string;
+    char* end_resource_string;
     char       *rest = data->request_line_string;
 
     method  = strtok_r(data->request_line_string, " ", &rest);
@@ -141,7 +161,12 @@ int parse_request_line(struct thread_state *data)
     {
         return -1;
     }
+    end_resource_string = version;
+    end_resource_string--;
+    start_resource_string = path;
+    parse_path_arguments(start_resource_string, end_resource_string);
     memcpy(data->resource_string, path, (size_t)(version - path + 1));
+
     data->version = (char *)malloc((MAXLINELENGTH) * sizeof(char));
     if(data->version == NULL)
     {
@@ -149,6 +174,7 @@ int parse_request_line(struct thread_state *data)
         return -1;
     }
     memcpy(data->version, version, strlen(version) - 2);
+
 
     return 0;
 }
