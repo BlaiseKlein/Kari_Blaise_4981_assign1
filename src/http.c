@@ -113,7 +113,7 @@ size_t read_until(int fd, char *buffer, size_t len, const char *delimiter, int *
     return (size_t)buffer_end;
 }
 
-void   parse_path_arguments(char* start_resource_string, char* end_resource_string)
+void   parse_path_arguments(const char* start_resource_string, char* end_resource_string)
 {
     const char unix_slash = '/';
     const char mark_start_args = '?';
@@ -134,7 +134,7 @@ void   parse_path_arguments(char* start_resource_string, char* end_resource_stri
 int parse_request_line(struct thread_state *data)
 {
     const char *method;
-    const char *path;
+    char *path;
     const char *version;
     char* start_resource_string;
     char* end_resource_string;
