@@ -3,9 +3,11 @@
 //
 
 #include "serve_request.h"
+#include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -18,6 +20,7 @@
 #define BAD_REQUEST 400
 #define FORBIDDEN 403
 #define SERVER_ERROR 500
+#define BASE 16
 
 const char *get_mime_type(const char *filepath)
 {
@@ -53,7 +56,7 @@ const char *get_mime_type(const char *filepath)
     return "application/octet-stream";
 }
 
-void handle_get_request(int client_fd, const char *resource_path)
+void handle_get_request(int client_fd, char *resource_path)
 {
     char        file_path[BUFFER_SIZE];
     char        header[BUFFER_SIZE];
@@ -97,7 +100,7 @@ void handle_get_request(int client_fd, const char *resource_path)
     close(filefd);
 }
 
-void handle_head_request(int client_fd, const char *resource_path)
+void handle_head_request(int client_fd, char *resource_path)
 {
     char        file_path[BUFFER_SIZE];
     char        header[BUFFER_SIZE];
@@ -119,8 +122,10 @@ void handle_head_request(int client_fd, const char *resource_path)
     write(client_fd, header, strlen(header));
 }
 
-int construct_and_validate_path(const char *resource_path, char *file_path, size_t file_path_size, struct stat *path_stat)
+int construct_and_validate_path(char *resource_path, char *file_path, size_t file_path_size, struct stat *path_stat)
 {
+    parse_url_encoding(resource_path);
+
     // Construct the file path
     snprintf(file_path, file_path_size, "%s%s", SERVER_ROOT, resource_path);
     printf("construct and validate %s\n", file_path);
@@ -187,4 +192,42 @@ void construct_http_header(char *header, size_t header_size, int status_code, co
              status_text,
              content_length,
              mime_type);
+}
+
+char hex_char_to_char(char *c)
+{
+    long  num;
+    char *end = c;
+    end       = end + 2;
+    num       = strtol(c, &end, BASE);
+
+    return (char)num;
+}
+
+void parse_url_encoding(char *resource_string)
+{
+    char  *start;
+    char  *buffer;
+    size_t resource_string_size;
+    buffer               = (char *)malloc(strlen(resource_string) + 1);
+    start                = buffer;
+    resource_string_size = strlen(resource_string);
+
+    for(size_t i = 0; i < resource_string_size; i++, buffer++)
+    {
+        if(resource_string[i] == '%')
+        {
+            *buffer = hex_char_to_char(&resource_string[i + 1]);
+            i += 2;
+        }
+        else
+        {
+            *buffer = resource_string[i];
+        }
+    }
+
+    memset(resource_string, 0, resource_string_size);
+    memset(start, 0, resource_string_size);
+    free(start);
+    // resource_string = start;
 }
