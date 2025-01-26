@@ -20,11 +20,12 @@
 #define BAD_REQUEST 400
 #define FORBIDDEN 403
 #define SERVER_ERROR 500
+
 #define BASE 16
 
 const char *get_mime_type(const char *filepath)
 {
-    printf("inside mime_type %s\n", filepath);
+    // printf("inside mime_type %s\n", filepath);
     if(strstr(filepath, ".html"))
     {
         return "text/html";
@@ -67,10 +68,10 @@ void handle_get_request(int client_fd, char *resource_path)
     const char *mime_type;
 
     int status_code = construct_and_validate_path(resource_path, file_path, sizeof(file_path), &path_stat);
-    printf("inside handle get request %s\n", file_path);
+    // printf("inside handle get request %s\n", file_path);
     if(status_code != OK)
     {
-        printf("%d\n", status_code);
+        // printf("%d\n", status_code);
         construct_http_header(header, sizeof(header), status_code, "text/plain", 0);
         write(client_fd, header, strlen(header));
         return;
@@ -88,7 +89,7 @@ void handle_get_request(int client_fd, char *resource_path)
     }
 
     construct_http_header(header, sizeof(header), OK, mime_type, (size_t)path_stat.st_size);
-    printf("header: %s\n", header);
+    // printf("header: %s\n", header);
     write(client_fd, header, strlen(header));
 
     // Send file content
@@ -128,7 +129,7 @@ int construct_and_validate_path(char *resource_path, char *file_path, size_t fil
 
     // Construct the file path
     snprintf(file_path, file_path_size, "%s%s", SERVER_ROOT, resource_path);
-    printf("construct and validate %s\n", file_path);
+    // printf("construct and validate %s\n", file_path);
     // Default to index.html for directory-like paths
     if(resource_path[strlen(resource_path) - 1] == '/')
     {
@@ -139,7 +140,7 @@ int construct_and_validate_path(char *resource_path, char *file_path, size_t fil
     if(strstr(resource_path, "/../"))
     {
         printf("directory traversal\n");
-        return BAD_REQUEST;
+        return FORBIDDEN;
     }
 
     // Check file existence
@@ -147,12 +148,12 @@ int construct_and_validate_path(char *resource_path, char *file_path, size_t fil
     {
         if(errno == EACCES)
         {
-            printf("Permission denied for %s\n", file_path);
+            // printf("Permission denied for %s\n", file_path);
             return FORBIDDEN;
         }
 
         {
-            printf("File not found: %s\n", file_path);
+            // printf("File not found: %s\n", file_path);
             return NOT_FOUND;
         }
     }
@@ -194,40 +195,36 @@ void construct_http_header(char *header, size_t header_size, int status_code, co
              mime_type);
 }
 
-char hex_char_to_char(char *c)
+char hex_char_to_char(const char *c)
 {
-    long  num;
-    char *end = c;
-    end       = end + 2;
-    num       = strtol(c, &end, BASE);
-
+    const char temp[3] = {c[0], c[1], '\0'};    // Copy two characters and null-terminate
+    long       num     = strtol(temp, NULL, BASE);
     return (char)num;
 }
 
 void parse_url_encoding(char *resource_string)
 {
-    char  *start;
-    char  *buffer;
-    size_t resource_string_size;
-    buffer               = (char *)malloc(strlen(resource_string) + 1);
-    start                = buffer;
-    resource_string_size = strlen(resource_string);
+    size_t resource_string_size = strlen(resource_string);
+    char  *buffer               = (char *)malloc(resource_string_size + 1);
+    char  *start                = buffer;
 
     for(size_t i = 0; i < resource_string_size; i++, buffer++)
     {
-        if(resource_string[i] == '%')
+        if(resource_string[i] == '%' && i + 2 < resource_string_size)
         {
             *buffer = hex_char_to_char(&resource_string[i + 1]);
-            i += 2;
+            i += 2;    // Skip the two hex characters
         }
         else
         {
             *buffer = resource_string[i];
         }
     }
+    *buffer = '\0';    // Null-terminate the result
 
-    memset(resource_string, 0, resource_string_size);
-    memset(start, 0, resource_string_size);
+    // Copy decoded result back to resource_string
+    strncpy(resource_string, start, resource_string_size);
+    resource_string[resource_string_size] = '\0';
+
     free(start);
-    // resource_string = start;
 }

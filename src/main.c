@@ -1,6 +1,7 @@
 
 #include "data_types.h"
 #include "network.h"
+#include <arpa/inet.h>
 #include <p101_fsm/fsm.h>
 #include <p101_posix/p101_unistd.h>
 #include <stdio.h>
@@ -13,6 +14,8 @@ static p101_fsm_state_t error_state(const struct p101_env *env, struct p101_erro
 
 #define UNKNOWN_OPTION_MESSAGE_LEN 24
 #define MAXARGS 5
+#define PORT_BASE 10
+#define MAX_PORT 65535
 
 int main(int argc, char *argv[])
 {
@@ -82,12 +85,23 @@ static void parse_arguments(const struct p101_env *env, int argc, char *argv[], 
         {
             case 'i':
             {
+                struct sockaddr_in sa;
+                if(inet_pton(AF_INET, optarg, &(sa.sin_addr)) != 1)
+                {
+                    usage(argv[0], EXIT_FAILURE, "Invalid IP address provided.");
+                }
                 ctx->arg.sys_addr     = optarg;
                 ctx->arg.sys_addr_len = (ssize_t)strlen(optarg);
                 break;
             }
             case 'p':
             {
+                char *endptr;
+                long  port = strtol(optarg, &endptr, PORT_BASE);
+                if(*endptr != '\0' || port < 1 || port > MAX_PORT)
+                {
+                    usage(argv[0], EXIT_FAILURE, "Invalid port number. Valid range is 1-65535.");
+                }
                 ctx->arg.sys_port = optarg;
                 break;
             }
@@ -136,7 +150,7 @@ _Noreturn static void usage(const char *program_name, int exit_code, const char 
     fprintf(stderr, "Usage: %s -i <server_ip> -p <server_port>\n", program_name);
     fputs("Options:\n", stderr);
     fputs("  -i  <server_ip> The ip flag and server IP address\n", stderr);
-    fputs("  -p  <server_port> The port flag and the port id to communicate with\n", stderr);
+    fputs("  -p  <server_port> The port flag and the port id to communicate with\n\n", stderr);
     exit(exit_code);
 }
 

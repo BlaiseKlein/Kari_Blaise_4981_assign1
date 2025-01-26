@@ -68,7 +68,7 @@ void *parse_request(void *context_data)
     {
         const char *resp = "HTTP/1.0 405 Method Not Allowed\r\n"
                            "Content-Type: text/plain\r\n\r\n"
-                           "405 Method Not Allowed";
+                           "405 Method Not Allowed\n";
         write(data->client_fd, resp, strlen(resp));
     }
     close(data->client_fd);
@@ -117,8 +117,13 @@ void parse_path_arguments(const char *start_resource_string, char *end_resource_
 {
     const char unix_slash      = '/';
     const char mark_start_args = '?';
+    if(start_resource_string == NULL || end_resource_string == NULL)
+    {
+        fprintf(stderr, "Error: Null pointer in parse_path_arguments\n");
+        return;
+    }
 
-    for(; start_resource_string != end_resource_string; end_resource_string--)
+    while(end_resource_string >= start_resource_string)
     {
         if(*end_resource_string == unix_slash)
         {
@@ -129,6 +134,7 @@ void parse_path_arguments(const char *start_resource_string, char *end_resource_
             *end_resource_string = '\0';
             return;
         }
+        end_resource_string--;
     }
 }
 
@@ -144,10 +150,12 @@ int parse_request_line(struct thread_state *data)
     method  = strtok_r(data->request_line_string, " ", &rest);
     path    = strtok_r(NULL, " ", &rest);
     version = strtok_r(NULL, " ", &rest);
-    if(method == NULL)
+    if(method == NULL || path == NULL || version == NULL)
     {
+        fprintf(stderr, "Error: Malformed request line\n");
         return -1;
     }
+
     if(strcmp(method, "GET") == 0)
     {
         data->method = GET;
@@ -160,8 +168,10 @@ int parse_request_line(struct thread_state *data)
     data->resource_string = (char *)malloc((MAXLINELENGTH) * sizeof(char));
     if(data->resource_string == NULL)
     {
+        free(data->resource_string);
         return -1;
     }
+
     end_resource_string = version;
     end_resource_string--;
     start_resource_string = path;
